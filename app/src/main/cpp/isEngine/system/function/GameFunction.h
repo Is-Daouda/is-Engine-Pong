@@ -1,3 +1,24 @@
+/*
+  is::Engine (Infinity Solution Engine)
+  Copyright (C) 2018-2021 Is Daouda <isdaouda.n@gmail.com>
+
+  This software is provided 'as-is', without any express or implied
+  warranty.  In no event will the authors be held liable for any damages
+  arising from the use of this software.
+
+  Permission is granted to anyone to use this software for any purpose,
+  including commercial applications, and to alter it and redistribute it
+  freely, subject to the following restrictions:
+
+  1. The origin of this software must not be misrepresented; you must not
+     claim that you wrote the original software. If you use this software
+     in a product, an acknowledgment in the product documentation would be
+     appreciated but is not required.
+  2. Altered source versions must be plainly marked as such, and must not be
+     misrepresented as being the original software.
+  3. This notice may not be removed or altered from any source distribution.
+*/
+
 #ifndef GAME_FONCTION_H_INCLUDED
 #define GAME_FONCTION_H_INCLUDED
 
@@ -7,17 +28,9 @@
 #include <string>
 #include <iostream>
 
-#include "../isEngineWrapper.h"
+#include "../islibconnect/isLibConnect.h"
 #include "../entity/Form.h"
 #include "../../../app_src/config/GameConfig.h"
-
-#if defined(IS_ENGINE_HTML_5)
-/// auto generate font container
-static std::vector<std::shared_ptr<sf::Font>> AUTO_GENERATE_FONT;
-
-/// auto generate music container
-static std::vector<std::shared_ptr<sf::SoundBuffer>> AUTO_GENERATE_SOUND_BUFFER;
-#endif // defined
 
 /// Allows to browse object container (std::vector, ...)
 #define WITH(_SIZE) for(unsigned int _I = 0; _I < _SIZE; ++_I)
@@ -28,19 +41,22 @@ static std::vector<std::shared_ptr<sf::SoundBuffer>> AUTO_GENERATE_SOUND_BUFFER;
 #include <android/native_activity.h>
 #include <android/log.h>
 
+#if !defined(IS_ENGINE_SDL_2)
 // Since we want to get the native activity from SFML, we'll have to use an
 // extra header here:
 #include <SFML/System/NativeActivity.hpp>
+#endif
+
 #endif // defined
 
 namespace is
 {
 ////////////////////////////////////////////////////////////
 // Do not touch these variables unless you know what you are doing
-static float const MAX_CLOCK_TIME(0.018f); ///< game execution timing variables
-static float const VALUE_CONVERSION(65.f); ///< game execution timing variables
-static float const SECOND(59.f);           ///< represent third value in second
-static float const VALUE_TIME(1.538f);     ///< game execution timing variables
+extern float const MAX_CLOCK_TIME; ///< game execution timing variables
+extern float const VALUE_CONVERSION; ///< game execution timing variables
+extern float const SECOND;           ///< represent third value in second
+extern float const VALUE_TIME;     ///< game execution timing variables
 ////////////////////////////////////////////////////////////
 
 static float const PI(3.14159f);
@@ -51,8 +67,8 @@ static float const PI(3.14159f);
 ////////////////////////////////////////////////////////////
 enum SFMLSndStatus
 {
-    Playing,
     Stopped,
+    Playing,
     Paused
 };
 
@@ -63,7 +79,7 @@ std::string w_chart_tToStr(wchar_t const *str);
 std::wstring strToWStr(const std::string &str);
 
 /// Convert number to string
-template <class T>
+template <typename T>
 std::string numToStr(T val)
 {
     std::ostringstream s;
@@ -82,7 +98,7 @@ T strToNum(const std::string &str)
 }
 
 /// Convert number to wstring
-template <class T>
+template <typename T>
 std::wstring numToWStr(T val)
 {
     std::wostringstream ws;
@@ -92,7 +108,7 @@ std::wstring numToWStr(T val)
 }
 
 /// Draw zero behind a number
-template <class T>
+template <typename T>
 std::string writeZero(T val, int zeroNumber = 1)
 {
     std::string str;
@@ -104,8 +120,11 @@ std::string writeZero(T val, int zeroNumber = 1)
 /// Return game execution time in millisecond
 int getMSecond(float const &DELTA_TIME);
 
+/// Make a tm structure representing this date
+std::tm makeTime(int year, int month, int day);
+
 /// Show log message
-void showLog(std::string str, bool stopApplication = false);
+void showLog(const std::string& str, bool stopApplication = false);
 
 /// Get array size
 template <size_t SIZE, class T>
@@ -318,14 +337,14 @@ float getSFMLObjY(T &obj)
 template <class T>
 float getSFMLObjX(T *obj)
 {
-    return obj->getPosition().x;
+    return getSFMLObjX(&obj);
 }
 
 /// Return the y position of SFML object (pointer object)
 template <class T>
 float getSFMLObjY(T *obj)
 {
-    return obj->getPosition().y;
+    return getSFMLObjY(&obj);
 }
 
 /// Set the angle of SFML object
@@ -353,7 +372,7 @@ void setSFMLObjScaleX_Y(T &obj, float x, float y)
 template <class T>
 void setSFMLObjScale(T &obj, float scale)
 {
-    obj.setScale(scale, scale);
+    setSFMLObjScaleX_Y(obj, scale, scale);
 }
 
 /// Set origin of SFML object
@@ -476,22 +495,24 @@ void setFrame(sf::Sprite &sprite, float frame, int subFrame, int frameWidth, int
 /// Set the sprite frame with the same size (e.g 64x64)
 void setFrame(sf::Sprite &sprite, float frame, int subFrame, int frameSize);
 
-#if !defined(IS_ENGINE_HTML_5)
 /// Set the outline color of SFML object
 template <class T>
 void setSFMLObjOutlineColor(T &obj, sf::Color color)
 {
+#if !defined(IS_ENGINE_SDL_2)
     obj.setOutlineColor(color);
+#endif
 }
 
 /// Set the outline thickness and color of SFML object
 template <class T>
 void setSFMLObjOutlineColor(T &obj, float thickness, sf::Color color)
 {
+#if !defined(IS_ENGINE_SDL_2)
     obj.setOutlineThickness(thickness);
     obj.setOutlineColor(color);
-}
 #endif
+}
 
 /// Set Texture Rec of SFML object
 template <class T>
@@ -536,73 +557,77 @@ inline void setSFMLObjProperties(sf::CircleShape &obj, float x, float y, float a
     is::setSFMLObjX_Y(obj, x, y);
 }
 
-/// Load SFML Texture Resource
-inline void loadSFMLTexture(sf::Texture &obj, std::string filePath)
+/// Center SFML object
+template <class T>
+void centerSFMLObj(T &obj)
 {
-    #if !defined(IS_ENGINE_HTML_5)
+    obj.setOrigin(
+#if !defined(IS_ENGINE_SFML)
+    obj.getTextureRect().width / 2, obj.getTextureRect().height / 2
+#else
+    obj.getGlobalBounds().width / 2, obj.getGlobalBounds().height / 2
+#endif
+    );
+}
+
+/// Center SFML object X
+template <class T>
+void centerSFMLObjX(T &obj)
+{
+    obj.setOrigin(
+#if !defined(IS_ENGINE_SFML)
+                  obj.getTextureRect().width / 2
+#else
+                  obj.getGlobalBounds().width / 2
+#endif
+                  , obj.getOrigin().y);
+}
+
+/// Center SFML object Y
+template <class T>
+void centerSFMLObjY(T &obj)
+{
+    obj.setOrigin(obj.getOrigin().x,
+#if !defined(IS_ENGINE_SFML)
+                  obj.getTextureRect().height / 2
+#else
+                  obj.getGlobalBounds().height / 2
+#endif
+                  );
+}
+
+/// Load SFML Texture Resource
+inline void loadSFMLTexture(sf::Texture &obj, const std::string& filePath)
+{
     obj.loadFromFile(filePath);
-    #else
-    obj = sf::Texture(filePath);
-    #endif
 }
 
 /// Load SFML Font Resource
-/// When you develop for the Web you must define the size that the texts will have with this font
-inline void loadSFMLFont(sf::Font &obj, std::string filePath, float fontSize = is::GameConfig::DEFAULT_SFML_TEXT_SIZE)
+inline void loadSFMLFont(sf::Font &obj, const std::string& filePath, int fontDefaultSize = is::GameConfig::DEFAULT_SFML_TEXT_SIZE)
 {
-    #if !defined(IS_ENGINE_HTML_5)
+#if !defined(IS_ENGINE_SFML)
+    obj.setSDLFontSize(fontDefaultSize);
+#endif
     obj.loadFromFile(filePath);
-    #else
-    obj = sf::Font(filePath, fontSize);
-    #endif
 }
 
 /// Load SFML Sound Buffer Resource
-inline void loadSFMLSoundBuffer(sf::SoundBuffer &obj, std::string filePath)
+inline void loadSFMLSoundBuffer(sf::SoundBuffer &obj, const std::string& filePath)
 {
-    #if !defined(IS_ENGINE_HTML_5)
     obj.loadFromFile(filePath);
-    #else
-    obj = sf::SoundBuffer(filePath);
-    #endif
 }
 
 /// Load SFML Sound Buffer Resource and define it with the Sound
-inline void loadSFMLSoundBufferWithSnd(sf::SoundBuffer &sb, sf::Sound &snd, std::string filePath)
+inline void loadSFMLSoundBufferWithSnd(sf::SoundBuffer &sb, sf::Sound &snd, const std::string& filePath)
 {
-    #if !defined(IS_ENGINE_HTML_5)
     if (sb.loadFromFile(filePath)) snd.setBuffer(sb);
     else showLog("ERROR: Can't load Sound Buffer : " + filePath + " with sound");
-    #else
-    sb = sf::SoundBuffer(filePath);
-    snd = sf::Sound(sb);
-    #endif
 }
 
 /// Load SFML Music Resource
-inline void loadSFMLMusic(sf::Music &obj, std::string filePath)
+inline void loadSFMLMusic(sf::Music &obj, const std::string& filePath)
 {
-    #if !defined(IS_ENGINE_HTML_5)
     obj.openFromFile(filePath);
-    #else
-    bool musicExists(false);
-    unsigned int musicIndex(0);
-    WITH (AUTO_GENERATE_SOUND_BUFFER.size())
-    {
-        if (AUTO_GENERATE_SOUND_BUFFER[_I]->getFileName() == filePath)
-        {
-            musicIndex = _I;
-            musicExists = true;
-            break;
-        }
-    }
-    if (!musicExists)
-    {
-        AUTO_GENERATE_SOUND_BUFFER.push_back(std::make_shared<sf::SoundBuffer>(filePath));
-        musicIndex = (AUTO_GENERATE_SOUND_BUFFER.size() - 1);
-    }
-    obj = sf::Music(*AUTO_GENERATE_SOUND_BUFFER[musicIndex]);
-    #endif
 }
 
 /// Check SFML Sound state
@@ -626,19 +651,18 @@ bool checkSFMLSndState(T &obj, SFMLSndStatus state)
 
 /// Check SFML Sound state
 template <class T>
-bool checkSFMLSndState(T *obj, SFMLSndStatus state)
-{
-    switch (state)
+bool checkSFMLSndState(T *obj, SFMLSndStatus state) {
+    if (obj != nullptr)
     {
+        switch (state)
+        {
         case SFMLSndStatus::Playing:
             return (obj->getStatus() == sf::Sound::Status::Playing);
-        break;
         case SFMLSndStatus::Stopped:
             return (obj->getStatus() == sf::Sound::Status::Stopped);
-        break;
         case SFMLSndStatus::Paused:
             return (obj->getStatus() == sf::Sound::Status::Paused);
-        break;
+        }
     }
     return false;
 }
@@ -654,7 +678,10 @@ void playSFMLSnd(T &obj)
 template <class T>
 void playSFMLSnd(T *obj)
 {
-    obj->play();
+    if (obj != nullptr)
+    {
+        obj->play();
+    }
 }
 
 /// Allows to stop SFML Sound or Music
@@ -668,7 +695,10 @@ void stopSFMLSnd(T &obj)
 template <class T>
 void stopSFMLSnd(T *obj)
 {
-    obj->stop();
+    if (obj != nullptr)
+    {
+        obj->stop();
+    }
 }
 
 /// Allows to pause SFML Sound or Music
@@ -682,7 +712,10 @@ void pauseSFMLSnd(T &obj)
 template <class T>
 void pauseSFMLSnd(T *obj)
 {
-    obj->pause();
+    if (obj != nullptr)
+    {
+        obj->pause();
+    }
 }
 
 /// Allows to set SFML Sound or Music loop
@@ -696,7 +729,10 @@ void loopSFMLSnd(T &obj, bool val)
 template <class T>
 void loopSFMLSnd(T *obj, bool val)
 {
-    obj->loop(val);
+    if (obj != nullptr)
+    {
+        obj->loop(val);
+    }
 }
 
 /// Test collision between SFML object
@@ -715,75 +751,79 @@ void createRectangle(sf::RectangleShape &rec, sf::Vector2f recSize, sf::Color co
 /// Set SFML Text style
 void textStyleConfig(sf::Text &txt, bool underLined, bool boldText, bool italicText);
 
-#if defined(IS_ENGINE_HTML_5)
-inline void setTextFont(sf::Font &fnt, sf::Text &txt, int txtSize)
-{
-    if (static_cast<int>(fnt.getSize()) != txtSize)
-    {
-        bool fontExists(false);
-        unsigned int fontIndex(0);
-        WITH (AUTO_GENERATE_FONT.size())
-        {
-            if (AUTO_GENERATE_FONT[_I]->getFileName() == fnt.getFileName() && AUTO_GENERATE_FONT[_I]->getSize() == fnt.getSize())
-            {
-                fontIndex = _I;
-                fontExists = true;
-                break;
-            }
-        }
-        if (!fontExists)
-        {
-            AUTO_GENERATE_FONT.push_back(std::make_shared<sf::Font>(fnt.getFileName(), txtSize));
-            fontIndex = (AUTO_GENERATE_FONT.size() - 1);
-        }
-        txt.setFont(*AUTO_GENERATE_FONT[fontIndex]);
-    }
-    else txt.setFont(fnt);
-}
-#endif
-
-/// Create SFML wtext with color
-void createWText(sf::Font
-                 #if !defined(IS_ENGINE_HTML_5)
-                 const
-                 #endif
-                 &fnt, sf::Text &txt, std::wstring const &text, float x, float y, sf::Color color, bool centerText, int txtSize = is::GameConfig::DEFAULT_SFML_TEXT_SIZE);
-
 /// Create SFML text
+template<class T>
 void createText(sf::Font
-                 #if !defined(IS_ENGINE_HTML_5)
+                 #if defined(IS_ENGINE_SFML)
                  const
                  #endif
-                 &fnt, sf::Text &txt, std::string const &text, float x, float y, int txtSize = is::GameConfig::DEFAULT_SFML_TEXT_SIZE);
+                 &fnt, sf::Text &txt, T const &text, float x, float y,
+                 int txtSize = is::GameConfig::DEFAULT_SFML_TEXT_SIZE)
+{
+    txt.setFont(fnt);
+    if (txtSize > 0) txt.setCharacterSize(txtSize);
+    else txt.setCharacterSize(is::GameConfig::DEFAULT_SFML_TEXT_SIZE);
+    //textStyleConfig(txt, underLined, boldText, italicText);
+    txt.setString(text);
+    is::setSFMLObjX_Y(txt, x, y);
+    is::setSFMLObjFillColor(txt, is::GameConfig::DEFAULT_SFML_TEXT_COLOR);
+}
 
 /// Create SFML text with center parameter
+template<class T>
 void createText(sf::Font
-                 #if !defined(IS_ENGINE_HTML_5)
+                 #if defined(IS_ENGINE_SFML)
                  const
                  #endif
-                 &fnt, sf::Text &txt, std::string const &text, float x, float y, bool centerText, int txtSize = is::GameConfig::DEFAULT_SFML_TEXT_SIZE);
+                 &fnt, sf::Text &txt, T const &text, float x, float y, bool centerText,
+                 int txtSize = is::GameConfig::DEFAULT_SFML_TEXT_SIZE)
+{
+    createText(fnt, txt, text, x, y, txtSize);
+    if (centerText) is::centerSFMLObj(txt);
+    is::setSFMLObjX_Y(txt, x, y);
+}
 
 /// Create SFML text with color and size
+template<class T>
 void createText(sf::Font
-                 #if !defined(IS_ENGINE_HTML_5)
+                 #if defined(IS_ENGINE_SFML)
                  const
                  #endif
-                 &fnt, sf::Text &txt, std::string const &text, float x, float y, sf::Color color, int txtSize = is::GameConfig::DEFAULT_SFML_TEXT_SIZE);
+                 &fnt, sf::Text &txt, T const &text, float x, float y, sf::Color color,
+                 int txtSize = is::GameConfig::DEFAULT_SFML_TEXT_SIZE)
+{
+    createText(fnt, txt, text, x, y, txtSize);
+    is::setSFMLObjFillColor(txt, color);
+}
 
 /// Create SFML text with color, size and center
+template<class T>
 void createText(sf::Font
-                 #if !defined(IS_ENGINE_HTML_5)
+                 #if defined(IS_ENGINE_SFML)
                  const
                  #endif
-                 &fnt, sf::Text &txt, std::string const &text, float x, float y, sf::Color color, bool centerText, int txtSize = is::GameConfig::DEFAULT_SFML_TEXT_SIZE);
+                 &fnt, sf::Text &txt, T const &text, float x, float y, sf::Color color, bool centerText,
+                 int txtSize = is::GameConfig::DEFAULT_SFML_TEXT_SIZE)
+{
+    createText(fnt, txt, text, x, y, centerText, txtSize);
+    is::setSFMLObjFillColor(txt, color);
+}
 
-/// Create SFML text outline with color and size
 /*
+/// Create SFML text outline with color and size
+template<class T>
 void createText(sf::Font
-                 #if !defined(IS_ENGINE_HTML_5)
+                 #if defined(IS_ENGINE_SFML)
                  const
                  #endif
-                 &fnt, sf::Text &txt, std::string const &text, float x, float y, sf::Color color, sf::Color outlineColor, int txtSize = is::GameConfig::DEFAULT_SFML_TEXT_SIZE);
+                 &fnt, sf::Text &txt, T const &text, float x, float y, sf::Color color, sf::Color outlineColor, int txtSize = is::GameConfig::DEFAULT_SFML_TEXT_SIZE);
+{
+    createText(fnt, txt, text, x, y, txtSize, underLined, boldText, italicText);
+    #if defined(IS_ENGINE_SFML)
+    txt.setOutlineColor(outlineColor);
+    txt.setOutlineThickness(1.f);
+    #endif
+}
 */
 
 /// Create SFML sprites without IntRec
@@ -794,27 +834,6 @@ void createSprite(sf::Texture &tex, sf::Sprite &spr, sf::IntRect rec, sf::Vector
 
 /// Create SFML sprites advanced
 void createSprite(sf::Texture &tex, sf::Sprite &spr, sf::IntRect rec, sf::Vector2f position, sf::Vector2f origin, sf::Vector2f scale, unsigned int alpha = 255, bool repeatTexture = false, bool smooth = true);
-
-/// Center SFML object
-template <class T>
-void centerSFMLObj(T &obj)
-{
-    obj.setOrigin(obj.getGlobalBounds().width / 2, obj.getGlobalBounds().height / 2);
-}
-
-/// Center SFML object X
-template <class T>
-void centerSFMLObjX(T &obj)
-{
-    obj.setOrigin(obj.getGlobalBounds().width / 2, obj.getOrigin().y);
-}
-
-/// Center SFML object Y
-template <class T>
-void centerSFMLObjY(T &obj)
-{
-    obj.setOrigin(obj.getOrigin().x, obj.getGlobalBounds().height / 2);
-}
 
 //////////////////////////////////////////////////////
 /// \brief Return Cursor Position
@@ -884,7 +903,6 @@ bool mouseCollision(sf::RenderWindow &window, T const &obj, sf::Vector2f &positi
     return false;
 }
 
-#if !defined(IS_ENGINE_HTML_5)
 /// Do not touch this function it allows to manage the style of the window
 inline int getWindowStyle()
 {
@@ -898,7 +916,6 @@ inline int getWindowStyle()
         default: return sf::Style::Default; break;
     }
 }
-#endif
 
 /// Allows to set frame per second
 template <class T>
@@ -910,14 +927,22 @@ void setFPS(T &render, float fps)
 /// Allows to use Android vibrate
 short vibrate(short duration);
 
+////////////////////////////////////////////////////////////
+/// \brief Type of action to perform for the openURL function
+///
+////////////////////////////////////////////////////////////
+enum OpenURLAction
+{
+    Http,
+    Email,
+    Tel
+};
+
 /// Open URL in default navigator
 /// \param urlStr represent the web url (e.g www.website.com)
-void openURL(std::string urlStr);
+void openURL(const std::string& url, OpenURLAction action);
 
 #if defined(__ANDROID__)
-/// Allows to deactivate / activate Android screen lock
-void setScreenLock(bool disableLock);
-
 /// Convert JNI String to std::string
 static std::string jstring2string(JNIEnv *env, jstring jStr);
 

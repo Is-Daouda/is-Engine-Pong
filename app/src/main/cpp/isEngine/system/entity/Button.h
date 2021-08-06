@@ -1,3 +1,24 @@
+/*
+  is::Engine (Infinity Solution Engine)
+  Copyright (C) 2018-2021 Is Daouda <isdaouda.n@gmail.com>
+
+  This software is provided 'as-is', without any express or implied
+  warranty.  In no event will the authors be held liable for any damages
+  arising from the use of this software.
+
+  Permission is granted to anyone to use this software for any purpose,
+  including commercial applications, and to alter it and redistribute it
+  freely, subject to the following restrictions:
+
+  1. The origin of this software must not be misrepresented; you must not
+     claim that you wrote the original software. If you use this software
+     in a product, an acknowledgment in the product documentation would be
+     appreciated but is not required.
+  2. Altered source versions must be plainly marked as such, and must not be
+     misrepresented as being the original software.
+  3. This notice may not be removed or altered from any source distribution.
+*/
+
 #ifndef BUTTON_H_INCLUDED
 #define BUTTON_H_INCLUDED
 
@@ -68,11 +89,7 @@ public:
         // is::showLog("WARNING: Button::onMouseOver() method must be overloaded!");
     }
 
-    virtual void mouseAction(
-                             #if !defined(IS_ENGINE_HTML_5)
-                             sf::Event &event
-                             #endif // defined
-                             )
+    virtual void mouseAction(sf::Event &event)
     {
         if (m_isInCollision)
         {
@@ -86,22 +103,9 @@ public:
                                1.f;
                                #endif
             };
-            if (
-                #if !defined(IS_ENGINE_HTML_5)
-                event.type == sf::Event::MouseButtonPressed
-                #else
-                m_scene->getRenderWindow().input().IsCursorReleased()
-                #endif
-                )
+            if (event.type == sf::Event::MouseButtonPressed)
             {
-                #if !defined(IS_ENGINE_HTML_5)
-                if (event.key.code == 0 /* mouse left */)
-                {
-                #endif
-                    functionClick();
-                #if !defined(IS_ENGINE_HTML_5)
-                }
-                #endif
+                if (event.key.code == is::GameConfig::KEY_VALIDATION_MOUSE) functionClick();
             }
             #if defined(__ANDROID__)
             if (event.type == sf::Event::TouchEnded)
@@ -115,12 +119,10 @@ public:
         }
     }
 
-#if !defined(IS_ENGINE_HTML_5)
     virtual void event(sf::Event &event)
     {
         mouseAction(event);
     }
-#endif
 
     virtual void step(float const &DELTA_TIME)
     {
@@ -136,9 +138,6 @@ public:
                             #endif // defined
             m_isInCollision = true;
         }
-        #if defined(IS_ENGINE_HTML_5)
-        mouseAction();
-        #endif // defined
         is::setSFMLObjTexRec(m_sprParent, ((m_isInCollision) ? 1 : 0) * m_w, 0, m_w, m_h);
         if (!tempCollision)
         {

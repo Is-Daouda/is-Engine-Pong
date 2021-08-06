@@ -1,23 +1,38 @@
+/*
+  is::Engine (Infinity Solution Engine)
+  Copyright (C) 2018-2021 Is Daouda <isdaouda.n@gmail.com>
+
+  This software is provided 'as-is', without any express or implied
+  warranty.  In no event will the authors be held liable for any damages
+  arising from the use of this software.
+
+  Permission is granted to anyone to use this software for any purpose,
+  including commercial applications, and to alter it and redistribute it
+  freely, subject to the following restrictions:
+
+  1. The origin of this software must not be misrepresented; you must not
+     claim that you wrote the original software. If you use this software
+     in a product, an acknowledgment in the product documentation would be
+     appreciated but is not required.
+  2. Altered source versions must be plainly marked as such, and must not be
+     misrepresented as being the original software.
+  3. This notice may not be removed or altered from any source distribution.
+*/
+
 #include "GameDisplay.h"
 
 namespace is
 {
-#if !defined(IS_ENGINE_HTML_5)
 sf::Vector2f getMapPixelToCoords(GameDisplay const *scene, sf::Vector2i pixelPos)
 {
     return scene->getRenderWindow().mapPixelToCoords(pixelPos, scene->getView());
 }
-#endif
 
-GameDisplay::GameDisplay(sf::RenderWindow &window, sf::View &view, is::Render &surface, GameSystemExtended &gameSysExt, sf::Color bgColor):
+GameDisplay::GameDisplay(GameSystemExtended &gameSysExt, sf::Color bgColor):
     m_isClose(false),
-    m_window(window),
-    m_view(view),
-    #if defined(IS_ENGINE_HTML_5)
-    m_surface(window),
-    #else
-    m_surface(surface),
-    #endif
+    m_window(gameSysExt.m_window),
+    m_view(sf::Vector2f(is::GameConfig::VIEW_WIDTH / 2.f, is::GameConfig::VIEW_HEIGHT / 2.f), sf::Vector2f(is::GameConfig::VIEW_WIDTH, is::GameConfig::VIEW_HEIGHT)),
+    m_surface(gameSysExt.m_window),
     m_gameSysExt(gameSysExt),
     m_timeVibrateDuration(40),
     m_optionIndex(0),
@@ -152,11 +167,9 @@ void GameDisplay::setWindowSize(sf::Vector2u v, bool updateViewSize)
     #endif // defined
 }
 
-void GameDisplay::setWindowTitle(const sf::String &title)
+void GameDisplay::setWindowTitle(const std::string &title)
 {
-    #if !defined(IS_ENGINE_HTML_5)
     m_window.setTitle(title);
-    #endif
 }
 
 void GameDisplay::setWindowBgColor(sf::Color color)
@@ -166,7 +179,6 @@ void GameDisplay::setWindowBgColor(sf::Color color)
 
 void GameDisplay::controlEventFocusClosing(sf::Event &event)
 {
-    #if !defined(IS_ENGINE_HTML_5)
     // Manage the state of window
     if (event.type == sf::Event::GainedFocus) m_windowIsActive = true;
     if (event.type == sf::Event::LostFocus)   m_windowIsActive = false;
@@ -177,7 +189,6 @@ void GameDisplay::controlEventFocusClosing(sf::Event &event)
         m_isRunning = false;  // quit the main render loop
         m_window.close();
     }
-    #endif
 }
 
 void GameDisplay::updateMsgBox(int sliderDirection, bool rightSideValidation,
@@ -375,6 +386,7 @@ void GameDisplay::drawScreen()
     #if defined(__ANDROID__)
     }
     #endif // defined
+    is::display(m_window);
 }
 
 void GameDisplay::showTempLoading(float time)
@@ -388,13 +400,13 @@ void GameDisplay::showTempLoading(float time)
         float dTime = getDeltaTime();
         timeToQuit += is::getMSecond(dTime);
         sprTmploading2.rotate((5.f * is::VALUE_CONVERSION) * dTime);
-        #if !defined(IS_ENGINE_HTML_5)
+
         sf::Event ev;
         while (m_window.pollEvent(ev))
         {
             if (ev.type == sf::Event::Closed) is::closeApplication();
         }
-        #endif // defined
+
         is::clear(m_window, sf::Color::Black);
         is::draw(m_surface, sprTmploading);
         is::draw(m_surface, sprTmploading2);
@@ -404,20 +416,37 @@ void GameDisplay::showTempLoading(float time)
 
 void GameDisplay::loadParentResources()
 {
-    // Load sound
-    GSMaddSound("change_option", is::GameConfig::SFX_DIR + "change_option.ogg");
-    GSMaddSound("cancel", is::GameConfig::SFX_DIR + "cancel.ogg");
-    GSMaddSound("select_option", is::GameConfig::SFX_DIR + "select_option.ogg");
+    if (!m_gameSysExt.m_loadParentResources)
+    {
+        // Load sound
+        m_gameSysExt.GSMaddSound("change_option", is::GameConfig::SFX_DIR + "change_option" + SND_FILE_EXTENSION);
+        m_gameSysExt.GSMaddSound("cancel", is::GameConfig::SFX_DIR + "cancel" + SND_FILE_EXTENSION);
+        m_gameSysExt.GSMaddSound("select_option", is::GameConfig::SFX_DIR + "select_option" + SND_FILE_EXTENSION);
 
-    // Load message box sprite
-    auto &texMsgBox    = GRMaddTexture("confirm_box", is::GameConfig::GUI_DIR + "confirm_box.png");
-    auto &texMsgButton = GRMaddTexture("confirm_box_button", is::GameConfig::GUI_DIR + "confirm_box_button.png");
+        // Load message box sprite
+        m_gameSysExt.GRMaddTexture("confirm_box", is::GameConfig::GUI_DIR + "confirm_box.png");
+        m_gameSysExt.GRMaddTexture("confirm_box_button", is::GameConfig::GUI_DIR + "confirm_box_button.png");
 
-    // Temporal loading texture
-    GRMaddTexture("temp_loading", is::GameConfig::GUI_DIR + "temp_loading.png");
-    GRMaddTexture("loading_icon", is::GameConfig::GUI_DIR + "loading_icon.png");
+        // Temporal loading texture
+        m_gameSysExt.GRMaddTexture("temp_loading", is::GameConfig::GUI_DIR + "temp_loading.png");
+        m_gameSysExt.GRMaddTexture("loading_icon", is::GameConfig::GUI_DIR + "loading_icon.png");
 
-    is::createSprite(texMsgBox, m_sprMsgBox, sf::Vector2f(0.f, 0.f), sf::Vector2f(0.f, 0.f));
+        // Load font
+        m_gameSysExt.GRMaddFont("font_system", GameConfig::FONT_DIR + "font_system.ttf");
+        m_gameSysExt.GRMaddFont("font_msg", GameConfig::FONT_DIR + "font_msg.ttf");
+
+        m_gameSysExt.m_loadParentResources = true;
+    }
+
+    if (m_gameSysExt.m_loadParentResources)
+    {
+        WITH(m_gameSysExt.m_GSMsound.size()) GSMaddSoundObject(m_gameSysExt.m_GSMsound[_I]);
+        WITH(m_gameSysExt.m_GRMtexture.size()) GRMaddTextureObject(m_gameSysExt.m_GRMtexture[_I]);
+        WITH(m_gameSysExt.m_GRMfont.size()) GRMaddFontObject(m_gameSysExt.m_GRMfont[_I]);
+    }
+
+    auto &texMsgButton = GRMgetTexture("confirm_box_button");
+    is::createSprite(GRMgetTexture("confirm_box"), m_sprMsgBox, sf::Vector2f(0.f, 0.f), sf::Vector2f(0.f, 0.f));
     is::createSprite(texMsgButton, m_sprMsgBoxButton1, sf::Vector2f(0.f, 0.f), sf::Vector2f(0.f, 0.f));
     is::createSprite(texMsgButton, m_sprMsgBoxButton2, sf::Vector2f(0.f, 0.f), sf::Vector2f(0.f, 0.f));
     is::createSprite(texMsgButton, m_sprMsgBoxButton3, sf::Vector2f(0.f, 0.f), sf::Vector2f(0.f, 0.f));
@@ -430,8 +459,7 @@ void GameDisplay::loadParentResources()
     is::centerSFMLObj(m_sprMsgBoxButton3);
 
     // Load font
-    auto &fontSystem = GRMaddFont("font_system", GameConfig::FONT_DIR + "font_system.ttf", 18);
-    GRMaddFont("font_msg", GameConfig::FONT_DIR + "font_msg.ttf", 18);
+    auto &fontSystem = GRMgetFont("font_system");
 
     is::createText(fontSystem, m_txtMsgBox, "", 0.f, 0.f, 20);
     is::createText(fontSystem, m_txtMsgBoxYes, is::lang::pad_answer_yes[m_gameSysExt.m_gameLanguage],
@@ -440,6 +468,8 @@ void GameDisplay::loadParentResources()
                    0.f, 0.f, true, 18);
     is::createText(fontSystem, m_txtMsgBoxOK, is::lang::pad_answer_ok[m_gameSysExt.m_gameLanguage],
                    0.f, 0.f, true, 18);
+
+   is::createSprite(GRMgetTexture("temp_loading"), m_sprLoading, sf::Vector2f(m_viewX, m_viewY), sf::Vector2f(320.f, 240.f));
 }
 
 void GameDisplay::setIsRunning(bool val)
@@ -621,6 +651,9 @@ void GameDisplay::SDMdraw()
 {
     if (m_SDMObjectsDraw)
     {
+#if defined(IS_ENGINE_SDL_2)
+        std::shared_ptr<SDMBlitSDLSprite> obj = nullptr;
+#endif
         // draw scene objects
         for (std::list<std::shared_ptr<MainObject>>::iterator it = m_SDMsceneObjects.begin();
             it != m_SDMsceneObjects.end(); ++it)
@@ -629,16 +662,94 @@ void GameDisplay::SDMdraw()
             {
                 if ((*it)->m_SDMcallDraw)
                 {
-                    (*it)->draw(m_surface);
+                    if ((*it)->m_SDMblitSprTextureName != "")
+                    {
+#if defined(IS_ENGINE_SDL_2)
+                        if (obj.get() != nullptr)
+                        {
+                            if (obj->m_strTextureName != (*it)->m_SDMblitSprTextureName)
+                            {
+                                for (unsigned int i(0); i < m_SDMblitSDLSprite.size(); ++i)
+                                {
+                                    if (m_SDMblitSDLSprite[i]->m_strTextureName == (*it)->m_SDMblitSprTextureName)
+                                    {
+                                        obj = m_SDMblitSDLSprite[i];
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            for (unsigned int i(0); i < m_SDMblitSDLSprite.size(); ++i)
+                            {
+                                if (m_SDMblitSDLSprite[i]->m_strTextureName == (*it)->m_SDMblitSprTextureName)
+                                {
+                                    obj = m_SDMblitSDLSprite[i];
+                                    break;
+                                }
+                            }
+                        }
+                        obj->m_sprBlit.setTextureRect(sf::IntRect((*it)->getSprite().getTextureRect().left,
+                                                                  (*it)->getSprite().getTextureRect().top,
+                                                                  (*it)->getSprite().getTextureRect().width,
+                                                                  (*it)->getSprite().getTextureRect().height));
+                        obj->m_sprBlit.setPosition(is::getSFMLObjX((*it)->getSprite()), is::getSFMLObjY((*it)->getSprite()));
+                        obj->m_sprBlit.setOrigin(is::getSFMLObjOriginX((*it)->getSprite()), is::getSFMLObjOriginY((*it)->getSprite()));
+                        obj->m_sprBlit.setScale(is::getSFMLObjXScale((*it)->getSprite()), is::getSFMLObjYScale((*it)->getSprite()));
+                        obj->m_sprBlit.setColor((*it)->getSprite().getColor().r, (*it)->getSprite().getColor().g,
+                                                (*it)->getSprite().getColor().b, (*it)->getSprite().getColor().a);
+#endif
+                        if (inViewRec(it->get(), true))
+                        {
+                            if ((*it)->getVisible()) m_window.draw(
+                                                                  #if defined(IS_ENGINE_SDL_2)
+                                                                  obj->m_sprBlit
+                                                                  #else
+                                                                  (*it)->getSprite()
+                                                                  #endif
+                                                                  );
+                        }
+                    }
+                    else (*it)->draw(m_surface);
                 }
             }
         }
     }
     drawMsgBox();
 }
+
+void GameDisplay::createSprite(std::string const &spriteName, is::MainObject &obj, sf::IntRect rec, sf::Vector2f position, sf::Vector2f origin, sf::Vector2f scale, unsigned int alpha)
+{
+    auto &tex = GRMgetTexture(spriteName);
+    obj.m_SDMblitSprTextureName =
+#if !defined(IS_ENGINE_SDL_2)
+                                spriteName;
+    is::createSprite(tex, obj.getSprite(), rec, sf::Vector2f(position.x, position.y), sf::Vector2f(origin.x, origin.y), false, false);
+#else
+                                GRMgetTexture(spriteName).getFileName();
+    bool exists = false;
+    for (unsigned int i(0); i < m_SDMblitSDLSprite.size(); ++i)
+    {
+        if (m_SDMblitSDLSprite[i]->m_strTextureName == obj.m_SDMblitSprTextureName)
+        {
+            exists = true;
+            break;
+        }
+    }
+    if (!exists) m_SDMblitSDLSprite.push_back(std::make_shared<is::SDMBlitSDLSprite>(obj.m_SDMblitSprTextureName, tex));
+
+    obj.getSprite().setTextureRect(sf::IntRect(rec.left, rec.top, rec.width, rec.height));
+    obj.getSprite().setPosition(position.x, position.y);
+    obj.getSprite().setOrigin(origin.x, origin.y);
+    obj.getSprite().setScale(scale.x, scale.y);
+    obj.getSprite().setColor(255, 255, 255, alpha);
+#endif
+}
+
 #endif // defined
 
-void GameDisplay::GSMplaySound(std::string name)
+void GameDisplay::GSMplaySound(const std::string& name)
 {
     bool soundExist(false);
     WITH (m_GSMsound.size())
@@ -647,14 +758,14 @@ void GameDisplay::GSMplaySound(std::string name)
         {
             soundExist = true;
             if (m_GSMsound[_I]->getFileIsLoaded()) m_gameSysExt.playSound(m_GSMsound[_I]->getSound());
-            else is::showLog("ERROR: Sound exists but can't play <" + name + "> sound!");
+            else is::showLog("ERROR: Can't play <" + name + "> sound!");
             break;
         }
     }
     if (!soundExist) is::showLog("ERROR: Can't play <" + name + "> sound because sound not exists!");
 }
 
-void GameDisplay::GSMpauseSound(std::string name)
+void GameDisplay::GSMpauseSound(const std::string& name)
 {
     bool soundExist(false);
     WITH (m_GSMsound.size())
@@ -666,14 +777,14 @@ void GameDisplay::GSMpauseSound(std::string name)
             {
                 if (is::checkSFMLSndState(m_GSMsound[_I]->getSound(), is::SFMLSndStatus::Playing)) m_GSMsound[_I]->getSound().pause();
             }
-            else is::showLog("ERROR: Sound exists but can't stop <" + name + "> sound!");
+            else is::showLog("ERROR: Can't pause <" + name + "> sound!");
             break;
         }
     }
     if (!soundExist) is::showLog("ERROR: Can't pause <" + name + "> sound because sound not exists!");
 }
 
-void GameDisplay::GSMstopSound(std::string name)
+void GameDisplay::GSMstopSound(const std::string& name)
 {
     bool soundExist(false);
     WITH (m_GSMsound.size())
@@ -685,15 +796,18 @@ void GameDisplay::GSMstopSound(std::string name)
             {
                 if (is::checkSFMLSndState(m_GSMsound[_I]->getSound(), is::SFMLSndStatus::Playing)) m_GSMsound[_I]->getSound().stop();
             }
-            else is::showLog("ERROR: Sound exists but can't stop <" + name + "> sound!");
+            else is::showLog("ERROR: Can't stop <" + name + "> sound!");
             break;
         }
     }
     if (!soundExist) is::showLog("ERROR: Can't stop <" + name + "> sound because sound not exists!");
 }
 
-void GameDisplay::GSMplayMusic(std::string name)
+void GameDisplay::GSMplayMusic(const std::string& name)
 {
+#if defined(__ANDROID__)
+    GSMplaySound(name);
+#else
     bool musicExist(false);
     WITH (m_GSMmusic.size())
     {
@@ -701,15 +815,19 @@ void GameDisplay::GSMplayMusic(std::string name)
         {
             musicExist = true;
             if (m_GSMmusic[_I]->getFileIsLoaded()) m_gameSysExt.playMusic(m_GSMmusic[_I]->getMusic());
-            else is::showLog("ERROR: Music exists but can't play <" + name + "> music!");
+            else is::showLog("ERROR: Can't play <" + name + "> music!");
             break;
         }
     }
     if (!musicExist) is::showLog("ERROR: Can't play <" + name + "> music because music not exists!");
+#endif
 }
 
-void GameDisplay::GSMpauseMusic(std::string name)
+void GameDisplay::GSMpauseMusic(const std::string& name)
 {
+#if defined(__ANDROID__)
+    GSMpauseSound(name);
+#else
     bool musicExist(false);
     WITH (m_GSMmusic.size())
     {
@@ -720,15 +838,19 @@ void GameDisplay::GSMpauseMusic(std::string name)
             {
                 if (is::checkSFMLSndState(m_GSMmusic[_I]->getMusic(), is::SFMLSndStatus::Playing)) m_GSMmusic[_I]->getMusic().pause();
             }
-            else is::showLog("ERROR: Music exists but can't stop <" + name + "> music!");
+            else is::showLog("ERROR: Can't pause <" + name + "> music!");
             break;
         }
     }
     if (!musicExist) is::showLog("ERROR: Can't pause <" + name + "> music because music not exists!");
+#endif
 }
 
-void GameDisplay::GSMstopMusic(std::string name)
+void GameDisplay::GSMstopMusic(const std::string& name)
 {
+#if defined(__ANDROID__)
+    GSMstopSound(name);
+#else
     bool musicExist(false);
     WITH (m_GSMmusic.size())
     {
@@ -739,10 +861,11 @@ void GameDisplay::GSMstopMusic(std::string name)
             {
                 if (is::checkSFMLSndState(m_GSMmusic[_I]->getMusic(), is::SFMLSndStatus::Playing)) m_GSMmusic[_I]->getMusic().stop();
             }
-            else is::showLog("ERROR: Music exists but can't stop <" + name + "> music!");
+            else is::showLog("ERROR: Can't stop <" + name + "> music!");
             break;
         }
     }
     if (!musicExist) is::showLog("ERROR: Can't stop <" + name + "> music because music not exists!");
+#endif
 }
 }

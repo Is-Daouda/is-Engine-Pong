@@ -1,7 +1,30 @@
+/*
+  is::Engine (Infinity Solution Engine)
+  Copyright (C) 2018-2021 Is Daouda <isdaouda.n@gmail.com>
+
+  This software is provided 'as-is', without any express or implied
+  warranty.  In no event will the authors be held liable for any damages
+  arising from the use of this software.
+
+  Permission is granted to anyone to use this software for any purpose,
+  including commercial applications, and to alter it and redistribute it
+  freely, subject to the following restrictions:
+
+  1. The origin of this software must not be misrepresented; you must not
+     claim that you wrote the original software. If you use this software
+     in a product, an acknowledgment in the product documentation would be
+     appreciated but is not required.
+  2. Altered source versions must be plainly marked as such, and must not be
+     misrepresented as being the original software.
+  3. This notice may not be removed or altered from any source distribution.
+*/
+
 #ifndef GAMESYSTEM_H_INCLUDED
 #define GAMESYSTEM_H_INCLUDED
 
 #include "GameFunction.h"
+#include "../graphic/GRM.h"
+#include "../sound/GSM.h"
 #if defined(__ANDROID__)
 #if defined(IS_ENGINE_USE_ADMOB)
 #include "../android/AdmobManager.h"
@@ -12,8 +35,8 @@
 // is::Engine version
 //////////////////////////////////////////////////////
 #define IS_ENGINE_VERSION_MAJOR 3
-#define IS_ENGINE_VERSION_MINOR 2
-#define IS_ENGINE_VERSION_PATCH 0
+#define IS_ENGINE_VERSION_MINOR 3
+#define IS_ENGINE_VERSION_PATCH 3
 
 namespace is
 {
@@ -21,7 +44,7 @@ namespace is
 /// \brief Class for manage game system
 ///
 //////////////////////////////////////////////////////
-class GameSystem
+class GameSystem : public GSM, public GRM
 {
 public:
     //////////////////////////////////////////////////////
@@ -59,27 +82,19 @@ public:
     ///
     /// \return true if key is pressed false if not
     //////////////////////////////////////////////////////
-    virtual bool keyIsPressed(
-                              #if !defined(IS_ENGINE_HTML_5)
-                              sf::Keyboard::Key
-                              #else
-                              short
-                              #endif
-                              key) const;
+    virtual bool keyIsPressed(sf::Keyboard::Key key) const;
 
     /*
      * When using is::Engine to develop on HTML 5 the keyboard and mouse keys are represented
      * by integers. They are no longer differentiated by an enum, so this function is no longer
      * useful when using the SDK which allows to develop on the web.
      */
-    #if !defined(IS_ENGINE_HTML_5)
     //////////////////////////////////////////////////////
     /// \brief Check if mouse button is pressed
     ///
     /// \return true if button is pressed false if not
     //////////////////////////////////////////////////////
     virtual bool keyIsPressed(sf::Mouse::Button button) const;
-    #endif
 
     //////////////////////////////////////////////////////
     /// \brief Check if file exist
@@ -124,26 +139,8 @@ public:
         }
     }
 
-    /// Allows to stop a sound
-    virtual void stopSound(sf::Sound *obj)
-    {
-        if (m_enableSound)
-        {
-            if (is::checkSFMLSndState(obj, SFMLSndStatus::Playing)) is::stopSFMLSnd(obj);
-        }
-    }
-
     /// Allows to stop a music
     virtual void stopMusic(sf::Music &obj)
-    {
-        if (m_enableMusic)
-        {
-            if (is::checkSFMLSndState(obj, SFMLSndStatus::Playing)) is::stopSFMLSnd(obj);
-        }
-    }
-
-    /// Allows to stop a music
-    virtual void stopMusic(sf::Music *obj)
     {
         if (m_enableMusic)
         {
@@ -175,6 +172,7 @@ public:
     bool  m_enableVibrate; ///< Used to find out if vibrate is enabled in option
     bool  m_keyIsPressed;  ///< Used to find out if a key / button has been pressed
     bool  m_firstLaunch;   ///< Lets check if the game has been launched once
+    bool  m_loadParentResources; ///< Allows to load parents resources once
 
     /// Represent the variable that stores the option validation key with the Mouse
     sf::Mouse::Button m_validationMouseKey;
